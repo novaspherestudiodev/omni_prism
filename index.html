@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OMNI // PHYSICS ARCHITECTURE</title>
+    
+    <!-- FONTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500&family=Syncopate:wght@700&display=swap" rel="stylesheet">
+    
+    <!-- STYLES -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- LIBRARIES (Loading from CDN for easy setup) -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "gsap": "https://unpkg.com/gsap@3.12.5/index.js"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- THE 3D CANVAS -->
+    <canvas id="gl"></canvas>
+
+    <!-- CINEMATIC GRAIN OVERLAY -->
+    <div class="noise-overlay"></div>
+
+    <!-- CUSTOM CURSOR -->
+    <div class="cursor-dot"></div>
+    <div class="cursor-circle"></div>
+
+    <!-- UI INTERFACE -->
+    <main class="ui-layer">
+        
+        <header>
+            <div class="brand">OMNI<span class="accent">.DEV</span></div>
+            <div class="meta-data">
+                <span>LAT: 5.6037</span>
+                <span>LNG: -0.1870</span>
+                <span id="fps-counter">FPS: --</span>
+            </div>
+        </header>
+
+        <section class="hero">
+            <div class="hero-content">
+                <p class="subtitle">VISUAL COMPUTING ARCHITECTURE</p>
+                <h1 class="glitch-text" data-text="BEYOND LOGIC">BEYOND LOGIC</h1>
+                
+                <div class="manifesto">
+                    <p>Most websites are digital brochures. I built a physics simulation.</p>
+                    <p>If I can engineer light refraction in a browser using 100 lines of math, imagine what I can do for your e-commerce conversion funnel.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <div class="controls">
+                <button id="init-audio" class="cyber-btn">
+                    <span class="btn-text">INITIALIZE PROJECT</span>
+                    <span class="btn-glare"></span>
+                </button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+        </footer>
+
+    </main>
+
+    <!-- ENTRY POINT -->
+    <script type="module" src="./js/main.js"></script>
+
+</body>
+</html>

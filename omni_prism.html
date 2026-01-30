@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OMNI // PRISM</title>
+    
+    <!-- THE ENGINE -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- POST PROCESSING STACK -->
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    
+    <!-- ANIMATION -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <style>
+        /* --- ADVANCED TYPOGRAPHY & LAYOUT --- */
+        @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&family=Space+Mono&display=swap');
+
+        body { margin: 0; overflow: hidden; background: #000; color: #fff; font-family: 'Space Mono', monospace; }
+        
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        /* UI LAYER (Floating above the 3D) */
+        .ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; /* Pass clicks to 3D */
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 40px;
+            box-sizing: border-box;
+            mix-blend-mode: exclusion; /* TEXT CHANGES COLOR BASED ON BACKGROUND */
+        }
+
+        header { display: flex; justify-content: space-between; align-items: flex-start; }
+        
+        .brand { font-family: 'Syncopate', sans-serif; font-weight: 700; font-size: 24px; letter-spacing: -1px; text-transform: uppercase; }
+        .brand span { color: #ff0055; }
+
+        .status { text-align: right; font-size: 10px; opacity: 0.7; line-height: 1.5; }
+
+        .hero-text {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 100%;
+        }
+
+        h1 {
+            font-family: 'Syncopate', sans-serif;
+            font-size: 8vw; /* Massive scaling text */
+            margin: 0;
+            line-height: 0.9;
+            text-transform: uppercase;
+            letter-spacing: -0.05em;
+            opacity: 0.9;
+            filter: blur(0px);
+            transition: all 0.5s;
+        }
+
+        /* Glitch effect on hover */
+        h1:hover { text-shadow: 2px 0 #ff0055, -2px 0 #00f3ff; filter: blur(1px); }
+
+        .sub-text {
+            font-size: 12px;
+            letter-spacing: 5px;
+            margin-top: 20px;
+            opacity: 0;
+            animation: fadeIn 2s forwards 1s;
+        }
+
+        footer { display: flex; justify-content: space-between; align-items: flex-end; }
+        .coordinates { font-size: 10px; border-left: 1px solid #fff; padding-left: 10px; }
+        
+        .cta-btn {
+            pointer-events: all;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
+            padding: 15px 40px;
+            font-family: 'Syncopate', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+        .cta-btn:hover { background: #fff; color: #000; box-shadow: 0 0 30px rgba(255,255,255,0.5); }
+
+        @keyframes fadeIn { to { opacity: 0.6; } }
+        
+        /* Scanline Overlay */
+        .vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,1) 100%);
+            pointer-events: none; z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="vignette"></div>
+    <div id="canvas-container"></div>
+
+    <div class="ui-layer">
+        <header>
+            <div class="brand">OMNI<span>.</span>DEV</div>
+            <div class="status">
+                SYSTEM: NOMINAL<br>
+                RENDER: RAY_MARCH_V2<br>
+                FPS: UNLOCKED
+            </div>
+        </header>
+
+        <div class="hero-text">
+            <h1>Beyond<br>Logic</h1>
+            <div class="sub-text">VISUAL COMPUTING ARCHITECTURE</div>
+        </div>
+
+        <footer>
+            <div class="coordinates">
+                LAT: 5.6037 N<br>LNG: 0.1870 W
+            </div>
+            <button class="cta-btn" onclick="warpSpeed()">Initialize Project</button>
+        </footer>
+    </div>
+
+    <!-- SHADERS: THE SECRET SAUCE -->
+    
+    <!-- 1. Vertex Shader: Handles the shape breathing/distortion -->
+    <script type="x-shader/x-vertex" id="vertexShader">
+        varying vec3 vWorldPosition;
+        varying vec3 vNormal;
+        varying vec3 vViewPosition;
+
+        void main() {
+            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPosition.xyz;
+            vNormal = normalize(modelViewMatrix * vec4(normal, 0.0)).xyz;
+            vViewPosition = mvPosition.xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+
+    <!-- 2. Fragment Shader: THE CHROMATIC DISPERSION (Rainbow Glass) -->
+    <script type="x-shader/x-fragment" id="fragmentShader">
+        uniform vec3 uCameraPos;
+        uniform samplerCube envMap;
+        uniform float uRefractPower;
+        uniform float uChromaticAberration;
+        uniform float uTime;
+
+        varying vec3 vWorldPosition;
+        varying vec3 vNormal;
+
+        void main() {
+            vec3 viewDir = normalize(vWorldPosition - uCameraPos);
+            vec3 normal = normalize(vNormal);
+            
+            // Calculate Refraction indices for RGB separately (This creates the rainbow)
+            // Red bends least, Blue bends most
+            vec3 refractR = refract(viewDir, normal, uRefractPower - uChromaticAberration);
+            vec3 refractG = refract(viewDir, normal, uRefractPower);
+            vec3 refractB = refract(viewDir, normal, uRefractPower + uChromaticAberration);
+
+            // Sample the environment map 3 times
+            vec4 colorR = textureCube(envMap, refractR);
+            vec4 colorG = textureCube(envMap, refractG);
+            vec4 colorB = textureCube(envMap, refractB);
+
+            // Combine them
+            vec3 finalColor = vec3(colorR.r, colorG.g, colorB.b);
+            
+            // Add Fresnel (Edge glow)
+            float fresnel = pow(1.0 + dot(viewDir, normal), 3.0);
+            finalColor += vec3(1.0) * fresnel * 0.5;
+
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    </script>
+
+    <script>
+        // --- 1. SETUP ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 8;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: false }); // Post-proc handles AA
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // --- 2. ENVIRONMENT MAP (For the crystal to reflect) ---
+        // We generate a CubeTexture procedurally so we don't need external image files
+        const cubeCamera = new THREE.CubeCamera(0.1, 1000, 512);
+        cubeCamera.renderTarget.texture.type = THREE.HalfFloatType;
+        scene.add(cubeCamera);
+        
+        // Create a background scene to capture into the environment map
+        const bgScene = new THREE.Scene();
+        const bgGeo = new THREE.IcosahedronGeometry(20, 2);
+        const bgMat = new THREE.MeshBasicMaterial({ color: 0x111111, wireframe: true, side: THREE.BackSide });
+        const bgMesh = new THREE.Mesh(bgGeo, bgMat);
+        bgScene.add(bgMesh);
+        
+        // Add some glowing orbs to the background for reflections
+        for(let i=0; i<30; i++) {
+            const lightGeo = new THREE.SphereGeometry(Math.random() * 2, 16, 16);
+            const lightMat = new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xff0055 : 0x00f3ff });
+            const light = new THREE.Mesh(lightGeo, lightMat);
+            light.position.set((Math.random()-0.5)*40, (Math.random()-0.5)*40, (Math.random()-0.5)*40);
+            bgScene.add(light);
+        }
+
+        // --- 3. THE PRISM OBJECT ---
+        // Complex shape: Torus Knot
+        const geometry = new THREE.TorusKnotGeometry(1.5, 0.5, 200, 32);
+        
+        const material = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent,
+            uniforms: {
+                uCameraPos: { value: camera.position },
+                envMap: { value: cubeCamera.renderTarget.texture }, // Use the captured texture
+                uRefractPower: { value: 0.9 }, // Glass index
+                uChromaticAberration: { value: 0.05 }, // Rainbow strength
+                uTime: { value: 0 }
+            }
+        });
+
+        const prism = new THREE.Mesh(geometry, material);
+        scene.add(prism);
+
+        // --- 4. PARTICLE FIELD (Star Dust) ---
+        const particlesGeo = new THREE.BufferGeometry();
+        const count = 2000;
+        const posArray = new Float32Array(count * 3);
+        
+        for(let i = 0; i < count * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 20;
+        }
+        
+        particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particlesMat = new THREE.PointsMaterial({
+            size: 0.02,
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.5
+        });
+        const particles = new THREE.Points(particlesGeo, particlesMat);
+        scene.add(particles);
+
+        // --- 5. POST PROCESSING (The Cinematic Look) ---
+        const composer = new THREE.EffectComposer(renderer);
+        const renderPass = new THREE.RenderPass(scene, camera);
+        composer.addPass(renderPass);
+
+        // BLOOM (Neon Glow)
+        const bloomPass = new THREE.UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            1.5, // Strength
+            0.4, // Radius
+            0.85 // Threshold
+        );
+        composer.addPass(bloomPass);
+
+        // --- 6. ANIMATION LOOP ---
+        const mouse = new THREE.Vector2();
+        let targetX = 0;
+        let targetY = 0;
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            // 1. Update Cube Camera (Reflection)
+            // Rotate background scene to make reflections move
+            bgScene.rotation.y += 0.005;
+            cubeCamera.update(renderer, bgScene);
+
+            // 2. Animate Prism
+            prism.rotation.y += 0.005;
+            prism.rotation.z += 0.002;
+            
+            // Mouse Interaction (Tilt)
+            targetX = mouse.x * 0.5;
+            targetY = mouse.y * 0.5;
+            prism.rotation.x += 0.05 * (targetY - prism.rotation.x);
+            prism.rotation.y += 0.05 * (targetX - prism.rotation.y);
+
+            // Breathe effect (Scale)
+            const scale = 1 + Math.sin(time) * 0.05;
+            prism.scale.set(scale, scale, scale);
+
+            // 3. Update Uniforms
+            material.uniforms.uTime.value = time;
+            material.uniforms.uCameraPos.value = camera.position;
+
+            // 4. Render
+            composer.render();
+        }
+        animate();
+
+        // --- EVENTS ---
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // "Warp Speed" Effect on Click
+        window.warpSpeed = function() {
+            // Camera Zoom In
+            gsap.to(camera.position, { z: 0, duration: 1.5, ease: "expo.in" });
+            // Chromatic Aberration explosion
+            gsap.to(material.uniforms.uChromaticAberration, { value: 0.5, duration: 1 });
+            // Bloom explosion
+            gsap.to(bloomPass, { strength: 10, duration: 1 });
+            
+            // Fade out UI
+            gsap.to(".ui-layer", { opacity: 0, duration: 0.5 });
+            
+            // Redirect simulation
+            setTimeout(() => {
+                alert("SYSTEM BREACHED. WELCOME TO THE PORTFOLIO.");
+                // location.reload(); // Or redirect to next page
+            }, 1500);
+        }
+
+    </script>
+</body>
+</html>
